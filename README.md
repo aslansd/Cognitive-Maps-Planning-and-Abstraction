@@ -59,15 +59,6 @@ Every notebook is designed to open in Colab and run top to bottom with no setup:
 https://colab.research.google.com/github/YOUR-USERNAME/YOUR-REPO/blob/main/<notebook>.ipynb
 ```
 
-Locally:
-
-```bash
-git clone https://github.com/YOUR-USERNAME/YOUR-REPO.git
-cd YOUR-REPO
-pip install -r requirements.txt
-jupyter lab
-```
-
 **Dependencies.** `numpy`, `matplotlib`, `scipy`, `scikit-learn`, `pandas` throughout;
 `torch` for `MST_Planning_Benchmark`, `Cognitive_Map_Theories_Benchmark`, `CSCG_vs_Slots`, and
 `Benchmarking_Three_Planning_Models_on_a_Shared_Task`; `networkx` for the multi-room benchmark.
