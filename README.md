@@ -201,7 +201,6 @@ is in the controlled comparisons.
 ```
 .
 ├── README.md
-├── requirements.txt
 ├── Benchmarking_Three_Planning_Models_on_a_Shared_Task.ipynb
 ├── MST_Planning_Benchmark.ipynb
 ├── Cognitive_Map_Theories_Benchmark.ipynb
