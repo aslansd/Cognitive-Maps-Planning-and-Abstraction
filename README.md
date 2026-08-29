@@ -1,6 +1,6 @@
 # Cognitive Maps, Planning, and Abstraction
 
-Nine self-contained notebooks that take recent papers in computational neuroscience and cognitive
+Ten self-contained notebooks that take recent papers in computational neuroscience and cognitive
 science, re-implement their models from the equations and the released source, and put them on
 **shared tasks** so they can be compared, combined, and falsified rather than admired one at a time.
 
@@ -14,8 +14,9 @@ Each notebook does one of three things:
   [ARC-AGI](https://arcprize.org/arc-agi) — to find out which of its claims are about the framework
   and which were about the original benchmark.
 
-Everything runs end to end on a free Colab CPU instance. Most notebooks are pure NumPy with no
-backpropagation anywhere; four use PyTorch.
+Nine of the ten run end to end on a free Colab CPU instance. Most are pure NumPy with no
+backpropagation anywhere; five use PyTorch, and one —
+`EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark` — trains convolutional networks and wants a T4.
 
 ---
 
@@ -64,6 +65,37 @@ The comparison is structured so that the two review-and-analysis papers become *
 to the two mechanistic ones. The design pays off in §B4: on standard transitive inference the two
 theories are near-indistinguishable, and it takes a non-transitive relation to separate them.
 
+### Concept induction and sequence memory, crossed
+
+| Notebook | What it does | Runtime |
+|---|---|---|
+| [`EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark.ipynb`](EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark.ipynb) | **Whittington et al.'s (2025) activity slots and episodic weights** against **Yang et al.'s (2026) mental bootstrapping**, on a procedural RPM testbed. Because the two papers are not rivals — one is a theory of sequence *recall*, the other a self-supervised training paradigm for relational *induction* — the notebook refuses the naive head-to-head and runs the factorial the papers' own ablations imply: context substrate {CIM, WM slots, EM memory} × training objective {MB, NCD, PRD}, with encoder, pseudo-sample construction, classifier, loss and test protocol held identical and vendored from the authors' released source. Adds the one knob RAVEN cannot provide — matrix side length — so memory load can be swept. | ~30–45 min T4 (block A) |
+
+This is the second entry point into Whittington et al. (2025), from the opposite side to
+`CSCG_vs_Slots`: that notebook takes the slot architecture on its **home ground** of sequence
+prediction and derives it as the tropical limit of a gated linear RNN; this one **transplants** it
+into relational induction, where it was never meant to go, to find out which of its properties are
+about memory and which were about the recall task. It is also a second reading of Zhang et al. (2024)
+alongside `Minimax_Entropy_ARC` — both attack few-shot concept induction on RPM-like stimuli, one by
+fitting a Gibbs model per task, the other by training on reduced problems and testing on full ones.
+
+**The headline finding is the paradigm claim, and it is a positive result.** MB is the best objective
+in all three substrates — 82.6 / 74.4 / 68.2 for CIM, 39.4 / 31.2 / 30.6 for WM, 23.4 / 17.4 / 21.8
+for EM (chance 12.5). Reading within a row holds the substrate fixed, so the comparison is
+uncontaminated by architecture, and because the ordering survives replacing the Concept Induction
+Module with two unrelated memory substrates, it supports the authors' own framing that mental
+bootstrapping is a *training paradigm rather than a computational module*.
+
+**The effect size is a different story, and the notebook leads with it.** Yang et al.'s table S4
+reports VPM+CIM+NCD collapsing to 22.5 against 88.3 for MB. Here NCD reaches 74.4, only 8.2 points
+behind. The direction replicates; the magnitude does not, and the three candidate explanations —
+prose-derived baseline reimplementations, an easier testbed, a single seed — are not yet separable.
+
+**Half the design is still unrun.** Blocks B–D, including the `d_h` activation-budget sweep that is
+the only clean test of the superposition-interference prediction, have not been executed. The
+notebook says so in the headline rather than the appendix: nothing in the committed results bears on
+the EM/WM duality, which is a claim about memory *load*.
+
 ### Concept induction and planning on ARC-AGI
 
 | Notebook | What it does | Runtime |
@@ -87,14 +119,19 @@ https://colab.research.google.com/github/aslansd/Cognitive-Maps-Planning-and-Abs
 ```
 
 **Dependencies.** `numpy`, `matplotlib`, `scipy`, `scikit-learn`, `pandas` throughout;
-`torch` for `MST_Planning_Benchmark`, `Cognitive_Map_Theories_Benchmark`, `CSCG_vs_Slots`, and
-`Benchmarking_Four_Planning_Models_on_a_Shared_Task`; `networkx` for the multi-room benchmark and
+`torch` for `MST_Planning_Benchmark`, `Cognitive_Map_Theories_Benchmark`, `CSCG_vs_Slots`,
+`Benchmarking_Four_Planning_Models_on_a_Shared_Task`, and
+`EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark`; `Pillow` for the RPM stimulus renderer in the last
+of those; `networkx` for the multi-room benchmark and
 for the partial-order transitive closure in `Relational_Abstraction_Benchmark`.
 `Benchmarking_Four_Planning_Models_on_a_Shared_Task` vendors the SSP-BO library inline — it needs no
 `pip install` of `ssp-bayes-opt`, and in particular does **not** require Nengo, which the upstream
 package pulls in at import time.
-No GPU is required anywhere — `MST_Planning_Benchmark` will use one if present and is roughly
-1.5–2× faster with it.
+`MST_Planning_Benchmark` will use a GPU if present and is roughly 1.5–2× faster with it, but does
+not need one. The single real exception is
+`EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark`: it trains a four-block ResNet encoder over
+`batch × 10 variants × 16 frames` of feature maps, which is minutes per cell on a T4 and hours on
+CPU. It runs on CPU at `img_size=32`, but the committed numbers are from a T4.
 
 **Data.** Fetched at runtime, nothing is vendored:
 
@@ -106,6 +143,11 @@ No GPU is required anywhere — `MST_Planning_Benchmark` will use one if present
   [`marta-kryven/MST`](https://github.com/marta-kryven/MST).
 - `Relational_Abstraction_Benchmark` needs no data and no network at all: every task is generated in
   the notebook, and the model library is written to disk by a `%%writefile` cell.
+- `EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark` likewise generates every problem procedurally.
+  RAVEN, PGM and Bongard-LOGO are multi-gigabyte downloads, and — more to the point — RAVEN is 3×3
+  only, so the memory-load sweep that the whole paper-1 arm depends on is impossible on it. The
+  generator reproduces RAVEN's structure and exposes matrix width as a parameter. Swapping in the
+  authors' real loaders is a one-function change, documented in §10.
 
 **Speed switches.** Notebooks with expensive sweeps expose a flag near the top — `FAST`, `QUICK`, or
 `FULL_RUN`. The defaults are set for a first read-through; flip them for the numbers quoted in the
@@ -125,8 +167,16 @@ is hidden; the `apc-vision` repository implements the perception half of the APC
 planning half; the `ssp-bayes-opt` package accumulates a `constraint_ssp` term that its acquisition
 function never reads, so a start-position constraint has to be enforced by construction instead; Yang &
 Maass evaluate their rank profile at the moment the ranking *first* becomes correct rather than at
-convergence, which turns out to change the size of the terminal item effect by nearly a factor of two. Each of these changed a design decision, and each is documented inline where
-it bites.
+convergence, which turns out to change the size of the terminal item effect by nearly a factor of two.
+Yang et al.'s SSLvMB concatenates each problem in **both row and column order**, so its Concept
+Induction Module sees sixteen frames rather than the eight the paper's equations suggest; its
+pseudo-positive is the *intact* context rather than a masked-and-restored one; and its loss is a
+binary cross-entropy over the ten-variant vector against a one-hot target, not an independent
+per-sample BCE. All three were invisible in the text and all three changed the implementation. The
+same file also ships a genuine bug — `networks/sslvmb.py` initialises `self.concept_inductor = []`
+and then calls `self.concept_extractor.append(...)`, so the constructor raises `AttributeError` as
+released; the notebook fixes the typo and flags it. Each of these changed a design decision, and each
+is documented inline where it bites.
 
 **Reproduce before extending.** Where a paper has a headline result, the transcription is checked
 against it first — `EC_GCML_ARC` reproduces ECPG's inverted-U before touching ARC;
@@ -135,7 +185,20 @@ with the original repository; `CSCG_Exploring_Replay` runs every experiment twic
 coordinates and once on the learned latent graph; `Relational_Abstraction_Benchmark` opens with a
 validation section that matches its ridge and gradient-flow simulations against the closed forms
 ported from Lippl et al.'s R package to ~1e-15, and recovers the analytic conjunctivity factor
-α = 0.14716 for a one-hidden-layer ReLU network from random features.
+α = 0.14716 for a one-hidden-layer ReLU network from random features;
+`EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark` asserts that its vendored architecture comes to
+1,266,497 parameters against the 1.27 M reported in Yang et al.'s Table 1, so architectural drift
+fails loudly rather than silently.
+
+**The task generator is audited before it is trusted.** Two bugs in that notebook's own testbed would
+each have produced confident nonsense. Building distractors as perturbations of the correct answer
+places the answer at the *centroid* of the candidate set, so a context-free cue recovered it 29% of
+the time against 12.5% chance — precisely the artifact that motivated I-RAVEN and RAVEN-FAIR. And an
+early version of the mental-bootstrapping objective appended the masked cell to the end of the
+sequence instead of leaving it in its hole, which compacted the grid and destroyed the row structure
+the rules live in; the model collapsed to the constant-prior solution with loss pinned at 0.3243, the
+analytic optimum for predicting a constant on a one-positive/nine-negative split. Both checks are
+kept as runnable assertions rather than prose.
 
 **Separate the ceiling from the mechanism.** On ARC, *coverage* (can this DSL or filter library express
 the answer at all?) and *search or ranking efficiency within coverage* are reported separately, always.
@@ -154,7 +217,11 @@ dropped or rescued by a training-budget bump chosen after seeing the number. In
 the relational benchmark, all four models sit at chance on the
 pairs a partial order does not entail — they interpolate an order without representing their own
 uncertainty about it — and that row is left in the scorecard rather than dropped for being flat. A
-delay-period decoding analysis that fails to separate two theories is reported because it fails.
+delay-period decoding analysis that fails to separate two theories is reported because it fails. And
+the mental-bootstrapping benchmark reproduces its target paper's *direction* while failing to
+reproduce its *magnitude* — an 8-point advantage where the original reports a collapse — which is
+stated in the notebook's opening summary rather than buried, because a reader skimming the winning
+row would otherwise conclude table S4 had been replicated.
 
 **Shared randomness is treated as a confound.** Adding SSP-BO to the four-way planning benchmark moved
 APC's mean from 1.26 to 2.09 without a line of APC's code changing: GCML's theta-cycle rollouts and APC's
@@ -167,6 +234,13 @@ structure, or they will silently perturb the other four.
 because their own papers demand it, that is said in the text next to the table rather than smoothed
 away. The list-linking benchmark pits an incremental learner against a batch estimator, which is an
 architectural mismatch rather than a defeat, and the notebook says so and names the fair version.
+The same applies at a larger scale in `EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark`: activity slots
+and episodic weights are models of *recall* being scored on *induction*, so the substrate column is
+framed as "does it matter whether context sits in a fixed activation budget or a growing store, all
+else equal" rather than as a verdict on Whittington et al.'s model. An earlier draft of that notebook
+also compared substrates that had different numbers of cross-position mixing passes, which conflated
+the memory mechanism with relational depth; the `mix_stages` argument exists to equalise it, and the
+committed run matches depth at three.
 
 ---
 
@@ -215,6 +289,15 @@ the rich-regime network is trained with full-batch gradient descent under an aut
 search rather than the original's schedule, so the *pattern* across initialisation scales should be
 trusted ahead of the decimals.
 
+`EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark` reports block A only — nine of nineteen cells, one
+seed, 2,000 training problems, 500 test — and three cautions travel with it. Its 500-problem test set
+gives a 95% binomial interval of roughly ±4.3 points, so the +8.2 MB advantages are real but
+provisional. Its CIM+MB score of 82.6 sits suspiciously close to the 83.8 Yang et al. report on
+RAVEN, but the notebook trains on 2,000 problems for 10 epochs against their 70,000 for 100, so the
+agreement indicates that *this testbed is easier* rather than that the result was reproduced. And the
+NCD-vs-PRD ordering flips between runs — an earlier CPU pilot gave MB > PRD > NCD, the committed T4
+run gives MB > NCD > PRD — so only the MB-over-both gap should be quoted.
+
 None of the ARC notebooks is a competitive ARC-AGI submission, and each says why: a fixed-primitive
 DSL or a small filter library is exactly what the benchmark is built to defeat. The scientific content
 is in the controlled comparisons.
@@ -235,7 +318,7 @@ is in the controlled comparisons.
 
 7. Raju, R. V., Guntupalli, J. S., Zhou, G., Wendelken, C., Lázaro-Gredilla, M. & George, D. (2024). Space is a latent sequence: a theory of the hippocampus. *Science Advances* **10**, eadm8470.
 8. Whittington, J. C. R., McCaffary, D., Bakermans, J. J. W. & Behrens, T. E. J. (2022). How to build a cognitive map. *Nature Neuroscience* **25**, 1257–1272.
-9. Whittington, J. C. R. et al. (2025). A tale of two algorithms: activity slots vs. episodic weights.
+9. Whittington, J. C. R. et al. (2025). A tale of two algorithms: activity slots vs. episodic weights. *Neuron*. — [`em-wm-slots`](https://github.com/jcrwhittington/em-wm-slots)
 10. Antonov, G. & Dayan, P. (2025). Exploring replay. *Nature Communications* **16**, 1657.
 11. Mattar, M. G. & Daw, N. D. (2018). Prioritized memory access explains planning and hippocampal replay. *Nature Neuroscience* **21**, 1609–1617.
 
@@ -247,7 +330,8 @@ is in the controlled comparisons.
 15. Lippl, S., Kay, K., Jensen, G., Ferrera, V. P. & Abbott, L. F. (2024). A mathematical theory of relational generalization in transitive inference. *PNAS* **121**(28), e2314511121. — [`sflippl/relational-generalization-in-ti`](https://github.com/sflippl/relational-generalization-in-ti)
 16. Yang, Y. & Maass, W. (2026). The inherent capacity of neurons to learn order relations and support abstract reasoning. *Nature Communications*, s41467-026-76102-5. Preprint: bioRxiv 2025.03.17.642834.
 17. Krause, R. & Reimann, M. W. (2024). Items or Relations: what do Artificial Neural Networks learn? arXiv:2404.12401
-18. Chollet, F. (2019). On the measure of intelligence. arXiv:1911.01547. — [ARC-AGI](https://arcprize.org/arc-agi)
+18. Yang, L., Lyu, M., Wang, Y.-J., Xie, X., Zhen, Z., Lai, J.-H. & Zhang, R.-Y. (2026). Mental bootstrapping enables human-level concept learning in self-supervised deep models. *Science Advances* **12**(35), eaea7202. — code at [Zenodo 10.5281/zenodo.17846529](https://doi.org/10.5281/zenodo.17846529)
+19. Chollet, F. (2019). On the measure of intelligence. arXiv:1911.01547. — [ARC-AGI](https://arcprize.org/arc-agi)
 
 ---
 
@@ -262,6 +346,7 @@ is in the controlled comparisons.
 ├── CSCG_vs_Slots.ipynb
 ├── CSCG_Exploring_Replay.ipynb
 ├── Relational_Abstraction_Benchmark.ipynb
+├── EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark.ipynb
 ├── Minimax_Entropy_ARC.ipynb
 ├── EC_GCML_ARC.ipynb
 └── R_GCML_ARC.ipynb
@@ -279,7 +364,14 @@ filter library (the binding constraint on both ARC-planning notebooks is coverag
 algorithm). `Relational_Abstraction_Benchmark` ends with a list of extensions its library is built to
 accept — the most interesting being to give the rank rule a small conjunctive population and re-run
 the transverse-patterning benchmark, which is the synthesis the two papers point at and neither
-performs.
+performs. `EM_WM_Slots_vs_Mental_Bootstrapping_Benchmark` has a larger and more concrete gap: blocks
+B–D of its grid are written and unrun, and the `d_h` activation-budget sweep in block C is the only
+clean test in the repository of Whittington et al.'s superposition-interference prediction. Running
+it is roughly one to two T4-hours. The complementary experiment the notebook argues for — taking the
+`em-wm-slots` recall tasks and asking whether mental-bootstrapping-style training on *reduced*
+sequences improves generalisation to longer ones — would test Yang et al.'s paradigm on Whittington
+et al.'s home ground, where slots and episodic weights are the appropriate models rather than
+transplants.
 
 ## License
 
